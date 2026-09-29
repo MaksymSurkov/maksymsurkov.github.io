@@ -1,0 +1,1359 @@
+/*=================================================================
+  Hero intro — additive. Remove the <link> and <script> from
+  index.html and the site is exactly as it was.
+
+  Everything is gated behind .js on <html>, so with JavaScript
+  disabled nothing hides and nothing animates.
+=================================================================*/
+
+/*--- timings --------------------------------------------------
+  Everything below is derived from the panel. Retune the panel and
+  only --intro-copy and --intro-end need to follow.
+-------------------------------------------------------------- */
+:root {
+	/* the panel: starts at 0.3s, runs 1.5s, lands at 1.8s */
+	--intro-delay: 0.3s;
+	--intro-curtain: 1.5s;
+
+	/* When the copy is allowed to appear.
+
+	   It must not show before the panel is ~92% open, or the
+	   headline and the paragraph re-wrap in plain view as the panel
+	   keeps widening. With this easing 92% of the width is reached
+	   at 71% of the travel, so the rule is:
+
+	       --intro-copy  >=  --intro-delay + 0.71 x --intro-curtain
+
+	   Here that floor is 1.36s. */
+	--intro-copy: 1.4s;
+
+	/* When the last thing has finished moving (button, 1.83 + 0.7).
+	   js/intro.js reads this to know when to start the rotator. */
+	--intro-end: 2.6s;
+
+	--intro-ease: cubic-bezier(0.76, 0, 0.24, 1);
+	--intro-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*--- scroll-driven properties ---------------------------------
+  These five are written by startSectionReveal() in js/intro.js on
+  every scroll frame, and only read here. Declaring them gives them
+  a home in the CSS, a type, and a starting value, so the stylesheet
+  says what it expects instead of leaving it implicit in the JS.
+
+  The var() fallbacks further down are kept for browsers without
+  @property, where an unset custom property would invalidate the
+  whole declaration.
+-------------------------------------------------------------- */
+@property --about-s {
+	syntax: "<number>";
+	inherits: false;
+	initial-value: 1;
+}
+
+@property --about-r {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --stack-s {
+	syntax: "<number>";
+	inherits: false;
+	initial-value: 1;
+}
+
+@property --stack-dim {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0;
+}
+
+@property --stack-r {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --footer-s {
+	syntax: "<number>";
+	inherits: false;
+	initial-value: 1;
+}
+
+@property --footer-r {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --hero-s {
+	syntax: "<number>";
+	inherits: false;
+	initial-value: 1;
+}
+
+/* The only inherited one of the five: it is set on .main but read
+   in .main::after, and a pseudo-element gets its value from the
+   originating element by inheritance. With inherits: false the
+   ::after fell back to the initial value and the dimming vanished. */
+@property --hero-dim {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0;
+}
+
+/* Set on .header__mark, read by the light layer under it: the band
+   of the logo that sits over a dark background, as insets from its
+   top and bottom edges. */
+@property --ink-top {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 0px;
+}
+
+@property --ink-bottom {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 0px;
+}
+
+/* Inherited: js/intro.js sets these on the card, and the panel
+   that reads them is a pseudo-element, which only ever gets a
+   custom property by inheriting it. With inherits: false the panel
+   silently kept the initial value and the direction never arrived.
+
+   Parked at 101%, not 100%: the cards work out 405.328px tall, so
+   an exact 100% lands on a fractional pixel and rounding leaves a
+   1px line of the panel showing along the bottom edge. */
+@property --edge-x {
+	syntax: "<length-percentage>";
+	inherits: true;
+	initial-value: 0%;
+}
+
+@property --edge-y {
+	syntax: "<length-percentage>";
+	inherits: true;
+	initial-value: 101%;
+}
+
+@property --svc-img {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --svc-phone {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --hero-r {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+/*--- 1. the panel opens by growing its flex-basis --------------
+  .main__image is already flex: 1 1 auto, so it takes whatever is
+  left on its own — the photo fills the remaining space at every
+  frame and the end state is just the normal layout.
+
+  min-width: 0 is not optional: flex items default to
+  min-width: auto and refuse to collapse below their content's
+  width, so without it the panel starts at the width of the word
+  "Digital" instead of at zero.
+
+  Desktop only. Under 768px style.css stacks .main into a column,
+  where there is nothing behind the panel to reveal.
+-------------------------------------------------------------- */
+@media (min-width: 768px) {
+	/* The hairline seam.
+
+	   41.32% almost never lands on a whole device pixel, and while
+	   the panel animates every intermediate value is fractional. The
+	   panel and the photo round independently, so on the odd frame a
+	   sub-pixel gap opens between them and page background shows
+	   through it — white, because neither .wrapper nor .page paints
+	   one.
+
+	   Painting the panel's own colour on the flex container means
+	   any such gap is filled with purple instead, and there is
+	   nothing left to see. Nothing moves, nothing is overlapped.
+
+	   will-change is the wrong tool here: it exists to promote an
+	   element so transform/opacity can skip layout, but flex-basis
+	   IS layout and reflows every frame regardless — and the extra
+	   compositor layer tends to make edge rounding worse. */
+	.js .main {
+		background-color: rgb(98, 87, 254);
+	}
+
+	.js .main__body {
+		flex-basis: 0%;
+		min-width: 0;
+	}
+
+	.js.is-ready .main__body {
+		flex-basis: 40%;
+		transition: flex-basis var(--intro-curtain) var(--intro-ease) var(--intro-delay);
+	}
+}
+
+/*--- 2. header is pinned above everything ---------------------
+  style.css has it absolute, so it scrolls away with the document.
+  Fixed takes it out of the document's scroll entirely.
+
+  z-index 100 puts it over the stacked sections: those are sticky,
+  which makes them positioned elements at z-index auto, and a
+  positive z-index always paints above those regardless of document
+  order.
+
+  .wrapper { overflow: clip } does not clip it — a fixed element
+  whose containing block is the viewport escapes ancestor clipping.
+  What WOULD break it is a transform, filter or perspective on any
+  ancestor: that makes the ancestor the containing block and the
+  header would start scrolling again. Worth remembering before
+  putting a transform on .wrapper or .page.
+-------------------------------------------------------------- */
+.header {
+	position: fixed;
+	z-index: 100;
+
+	/* The logo is inlined in index.html with fill: currentColor on
+	   its plate and wordmark, so the header's own colour drives it.
+	   Only the mark's inner D keeps a fixed purple.
+
+	   It has to switch: the logo is white by design, made for the
+	   purple hero, and a fixed header now carries it over the light
+	   sections below, where the white simply disappeared. */
+}
+
+/*--- frosted header on scroll ---------------------------------
+  The header is fixed and transparent, so section copy scrolls
+  straight under it and collides with the logo.
+
+  Blur only, no tint. A tint would have to be one colour, and the
+  header passes over purple, navy and white — and a solid bar would
+  hide the section seam the logo splits on. Blur is colour-neutral:
+  what is behind keeps its own colour, the seam still reads through
+  it, and only the text is destroyed.
+
+  .header__social paints a solid purple bar and is not positioned,
+  so this pseudo-element would otherwise land on top of it and blur
+  the bar along with everything else. The content is lifted above
+  the frost instead of the frost being pushed below it: z-index: -1
+  also drops behind the parent's own background, so the day .header
+  gets one the blur would vanish under it.
+
+  No `position` needed on either — .header is a flex container, and
+  z-index applies to flex items whatever their position is.
+
+  The mask fades the bottom edge; without it the blur would stop on
+  a hard horizontal line across the page.
+
+  Off at the top, where the hero has nothing under the header to
+  collide with, and faded in once scrolling starts.
+-------------------------------------------------------------- */
+.header::before {
+	content: "";
+	position: absolute;
+	inset: 0 0 -28px 0;
+	pointer-events: none;
+	opacity: 0;
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+	mask-image: linear-gradient(to bottom, #000 0 58%, transparent 100%);
+	-webkit-mask-image: linear-gradient(to bottom, #000 0 58%, transparent 100%);
+	transition: opacity 0.35s ease;
+}
+
+/* above the frost */
+.header__logo,
+.header__social {
+	z-index: 1;
+}
+
+.header.is-scrolled::before {
+	opacity: 1;
+}
+
+/*--- the logo splits at the seam ------------------------------
+  Two copies of the same mark, stacked. The navy one is painted
+  whole; the white one is clipped on top of it to whatever part of
+  the logo is over a dark background. As a section boundary crosses
+  the logo, the logo splits with it: the part over purple stays
+  white, the part over white turns navy.
+
+  A single colour switched at a threshold cannot do this — the logo
+  would flip whole while it is still half on each background.
+
+  Which sections count as dark is declared in the markup, with
+  data-bg on each section, and js/intro.js reads it. Recolour a
+  section and you flip its attribute; nothing here hardcodes where
+  the change happens.
+
+  The letter inside the plate is a hole, not a fill: the plate and
+  the D are one path under fill-rule: evenodd, so the D is covered
+  twice and drops out. Whatever is actually behind the header shows
+  through it, which is why it comes out purple on the hero and white
+  further down without being told either colour.
+-------------------------------------------------------------- */
+.header__mark {
+	/* One knob. The SVG has a viewBox, so it scales cleanly, and the
+	   split logic reads the rendered height rather than assuming it —
+	   which is what lets this be fluid at all. 100px at a 320px
+	   viewport, 140px from 1440px up. */
+	--mark-w: clamp(100px, 88.571px + 3.571vw, 140px);
+
+	position: relative;
+	display: block;
+	inline-size: var(--mark-w);
+	block-size: calc(var(--mark-w) / 2.3); /* 92 x 40 */
+}
+
+/* The SVG carried width/height attributes, which act as
+   presentational hints and beat `inset: 0` — the mark drew at its
+   native 92x40 inside whatever box --mark-w gave it, leaving the
+   rest empty. The attributes are gone and the size is stated here
+   instead; the box keeps the viewBox's 2.3 ratio, so it fills
+   exactly with no letterboxing. */
+.header__mark-layer {
+	position: absolute;
+	inset: 0;
+	display: block;
+	inline-size: 100%;
+	block-size: 100%;
+}
+
+/* The navy copy is painted whole, underneath, and the white one is
+   clipped on top of it to whatever part of the logo is currently
+   over a dark background. One band instead of two halves, so it
+   does not care which way round the change goes — dark above light
+   or light above dark, or a dark stripe through the middle. */
+.header__mark-layer--dark {
+	color: rgb(16, 12, 70);
+}
+
+.header__mark-layer--light {
+	color: rgb(255, 255, 255);
+	clip-path: inset(var(--ink-top, 0px) 0 var(--ink-bottom, 0px) 0);
+}
+
+/*--- 3. header fades in over the hero ------------------------- */
+.js .header {
+	opacity: 0;
+}
+
+.js.is-ready .header {
+	opacity: 1;
+	transition: opacity 0.8s ease 0.5s;
+}
+
+/*--- 4. copy rises, staggered ---------------------------------
+  All four delays hang off --intro-copy, so the whole block moves
+  together when the panel is retimed. See the note on that token
+  for why it cannot be set earlier.
+-------------------------------------------------------------- */
+.js :is(.main__label, .main__text, .main__button) {
+	opacity: 0;
+	transform: translateY(24px);
+}
+
+.js.is-ready :is(.main__label, .main__text) {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d);
+}
+
+/* This rule outranks .button, so it has to carry everything the
+   button needs: the intro, its original colour hover from
+   style.css, and the press below. A single transition declaration
+   wins whole — anything left out simply stops animating. */
+.js.is-ready .main__button {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d),
+		background-color 0.5s ease,
+		color 0.5s ease,
+		translate 0.18s ease,
+		scale 0.18s ease,
+		box-shadow 0.18s ease;
+}
+
+.js .main__label { --d: var(--intro-copy); }
+.js .main__text { --d: calc(var(--intro-copy) + 0.3s); }
+.js .main__button { --d: calc(var(--intro-copy) + 0.43s); }
+
+/*--- 5. the headline rises out of a mask, word by word ---------
+  padding-bottom + the matching negative margin give the clip box
+  room for descenders (g, y) without moving the text; the parked
+  offset is 125% so the hidden word clears that taller box.
+-------------------------------------------------------------- */
+/* shared by both headlines — js/intro.js splits each into words */
+.word {
+	display: inline-block;
+	overflow: hidden;
+	vertical-align: bottom;
+	padding-bottom: 0.2em;
+	margin-bottom: -0.2em;
+}
+
+.word__in {
+	display: inline-block;
+}
+
+.js .main__title .word__in {
+	transform: translateY(125%);
+}
+
+.js.is-ready .main__title .word__in {
+	transform: translateY(0);
+	transition: transform 0.85s var(--intro-ease-out)
+		calc(var(--intro-copy) + 0.05s + var(--i) * 0.08s);
+}
+
+/*--- 6. the button presses into the surface -------------------
+  An object moving towards a surface does not just get smaller: its
+  cast shadow tightens with it — less offset, less blur — because
+  it is closer to what it falls on. Scaling alone reads as shrinking,
+  the shadow is what makes it read as pressing.
+
+  :active goes further and adds an inset shadow, so the surface
+  looks like it is closing over the edge of the button.
+
+  scale/translate are used as their own properties, not inside
+  transform: the intro animates transform: translateY() on this same
+  button, and a transform here would overwrite it — the button would
+  snap to its final position if you hovered mid-intro. Separate
+  properties compose instead of fighting.
+
+  style.css sets `transition: all 0.5s` on .button, which is far too
+  slow to read as a press; 0.18s is overridden here.
+-------------------------------------------------------------- */
+.button {
+	transition:
+		background-color 0.5s ease,
+		color 0.5s ease,
+		translate 0.18s ease,
+		scale 0.18s ease,
+		box-shadow 0.18s ease;
+}
+
+.button:hover {
+	translate: 0 2px;
+	scale: 0.97;
+	box-shadow: 0px 4px 14px 0px rgba(0, 0, 0, 0.28);
+}
+
+.button:active {
+	translate: 0 3px;
+	scale: 0.955;
+	box-shadow:
+		0px 1px 4px 0px rgba(0, 0, 0, 0.3),
+		inset 0px 2px 6px 0px rgba(0, 0, 0, 0.16);
+	transition-duration: 0.08s;
+}
+
+/*--- 7. header social icons -----------------------------------
+  White icons on the purple bar, so brightness is not available as
+  a hover cue — it has to be movement. They lift towards you, which
+  is the opposite of the button above: a link you reach for, not a
+  surface you push.
+-------------------------------------------------------------- */
+.social-header__item,
+.social-team__item {
+	position: relative;
+	transition:
+		translate 0.2s var(--intro-ease-out),
+		scale 0.2s var(--intro-ease-out);
+}
+
+/* The icons are ~21px, a fiddly thing to aim at. This grows the
+   click target to ~37px without touching the layout. The flex gap
+   is 25px, so the grown targets still leave 9px between them and
+   never overlap. */
+.social-header__item::after,
+.social-team__item::after {
+	content: "";
+	position: absolute;
+	inset: -8px;
+}
+
+/* the card's icons sit 10px apart, so the header's -8px would make
+   neighbouring targets overlap and swallow each other's clicks */
+.social-team__item::after {
+	inset: -4px;
+}
+
+.social-header__item:is(:hover, :focus-visible),
+.social-team__item:is(:hover, :focus-visible) {
+	translate: 0 -2px;
+	scale: 1.12;
+}
+
+.social-header__item:active,
+.social-team__item:active {
+	translate: 0 0;
+	scale: 1.04;
+	transition-duration: 0.08s;
+}
+
+/* style.css has no focus styles anywhere; white is what reads on
+   the purple bar. */
+.social-header__item:focus-visible,
+.social-team__item:focus-visible {
+	outline: 2px solid rgb(255, 255, 255);
+	outline-offset: 5px;
+	border-radius: 2px;
+}
+
+/*--- 8. mouse parallax on the hero photo ----------------------
+  Only where there is a real pointer to follow — this also keeps
+  the extra crop off touch devices, which never see the effect.
+
+  The photo is oversized so it has somewhere to move: 1.10 leaves
+  5% of overscan on each side. js/intro.js takes 3.5% of the box
+  for travel, so there is always ~1.4x of margin and an edge can
+  never appear — at any viewport width, because both numbers are
+  shares of the same box rather than fixed pixels.
+
+  Note this is the one place will-change would be legitimate — the
+  photo moves with `translate`, which the compositor can handle on
+  its own layer. It is left off deliberately: promoting the element
+  next to the panel risks bringing back the hairline seam that the
+  backdrop colour above was added to kill, and a translate this
+  small composites fine without the hint.
+-------------------------------------------------------------- */
+@media (hover: hover) and (pointer: fine) {
+	.js .main__image {
+		overflow: hidden;
+	}
+
+	.js .main__image img {
+		scale: 1.1;
+	}
+}
+
+/*--- 9. sections stack over one another on scroll -------------
+  Each section sticks to the top of the viewport while the next one
+  scrolls up over it.
+
+  sticky, not fixed: fixed would pull the section out of flow and
+  the page would lose its height, so there would be nothing left to
+  scroll. sticky keeps it in flow and only pins it while it passes.
+
+  No z-index needed either. Sticky elements are positioned
+  elements, and positioned siblings paint in document order — so
+  every section is already above the one before it. Nothing here
+  creates a stacking context that would break that: .wrapper is
+  position: relative but z-index: auto.
+
+  What IS needed is an opaque background on every section. None of
+  them has one in style.css — .about only paints its left half via
+  ::before — so without this you would read straight through each
+  section to the one parked behind it.
+
+  Note on .wrapper { overflow: clip }: a scrollable ancestor would
+  capture sticky and pin it to that box instead of the viewport.
+  `clip` is safe because it is explicitly not a scroll container —
+  unlike `hidden`, which would have broken this.
+-------------------------------------------------------------- */
+@media (min-width: 768px) {
+	/* Sections travel in normal flow and only need to be opaque, so
+	   nothing reads through them. */
+	.page__section {
+		position: relative;
+		background-color: rgb(255, 255, 255);
+	}
+
+	/* Three pinned things, and .page is the interesting one.
+
+	   It holds every section — roughly 4300px
+	   against a 900px viewport. Pinned by its top that would strand
+	   everything below the fold, so js/intro.js gives it the same
+	   treatment as any oversized sticky block: top = viewport minus
+	   height, about -2537px here. It then scrolls as ordinary flow
+	   all the way through, and only pins at the instant its bottom
+	   reaches the bottom of the screen — which is exactly when the
+	   footer starts arriving.
+
+	   That is what lets the footer genuinely ride over something,
+	   the way .about rides over the pinned hero, instead of growing
+	   out of an empty backdrop.
+
+	   It has to be .page itself, not an inner wrapper. A sticky box
+	   can only be pushed down inside its own parent, and an inner
+	   wrapper filling .page exactly has nowhere to go — its sticky
+	   range is 0px and the rule does nothing at all. .page sits in
+	   .wrapper next to the footer, so its range is exactly the
+	   footer's height. */
+	.main,
+	.page,
+	.footer {
+		position: sticky;
+		top: 0;
+	}
+
+	/* Sections are painted inside a box that gets scaled, so their
+	   edges round independently and a sub-pixel crack opens between
+	   them — the navy backdrop showing through as a 1px line.
+
+	   Overlapping them by a pixel closes it whatever colours meet.
+	   A shared background colour on .page cannot: .about is navy
+	   down its left half and white down its right, so one side or
+	   the other would always show a hairline of the wrong colour.
+
+	   The later section paints over the earlier one, so the pixel it
+	   eats is always covered by its own opaque background. */
+	.page__section + .page__section {
+		margin-block-start: -1px;
+	}
+
+	/* An upward edge belongs only to a layer that actually passes
+	   over something: .about over the pinned hero, and the footer
+	   over the content above it. The rest move with their
+	   neighbours and have nothing to cast onto. */
+	.about,
+	.footer {
+		box-shadow: 0px -24px 48px 0px rgba(16, 12, 70, 0.14);
+	}
+}
+
+/*--- 10. footer ----------------------------------------------
+  The contacts block lives inside the footer now, so the footer's
+  own top padding would push it off the card's top edge. That gap
+  belongs between contacts and the footer bar instead — the same
+  values style.css already used, at the same breakpoints.
+
+  min-block-size keeps the card at least a screen tall: svh rather
+  than dvh, because dvh changes as a mobile browser's toolbars slide
+  in and out and would resize the footer mid-scroll.
+
+  That minimum needs somewhere to put its slack. The content comes
+  to ~1170px, so on a 1440px screen there are 270px spare, and left
+  to itself the browser drops all of it below the copyright as dead
+  space. Letting .contacts take the slack fills it with the purple
+  panel instead, and the bar stays where style.css puts it — its own
+  80px from the bottom edge.
+-------------------------------------------------------------- */
+.footer {
+	display: flex;
+	flex-direction: column;
+	min-block-size: 100svh;
+	padding-top: 0;
+	background-color: rgb(255, 255, 255);
+}
+
+.contacts {
+	flex-grow: 1;
+}
+
+.footer__container {
+	padding-top: 110px;
+}
+
+@media (max-width: 1261px) {
+	.footer__container {
+		padding-top: 35px;
+	}
+}
+
+@media (max-width: 600px) {
+	.footer__container {
+		padding-top: 20px;
+	}
+}
+
+/* Centring the form on the card, where the card actually fits the
+   screen.
+
+   In flow the copyright bar adds ~260px below the contacts block
+   and nothing above it, and .contacts__body centres itself in
+   whatever height contacts has — so the form sat half that
+   asymmetry above the middle. Floating the bar lets contacts fill
+   the card and the form centre on it.
+
+   Gated on viewport height, not width: below this the footer is
+   taller than the screen anyway, so there is no middle to hit, and
+   a floating bar would have the form running under it — at 900px
+   the two overlap by 50px. 1150 is where the gap between the two
+   clears 30px; at 1100 they are 5px apart, which reads as touching.
+
+   .contacts has to become a flex container as well: as a plain
+   block its own container stays content-tall, and the form would
+   keep centring on that rather than on the card. */
+@media (min-height: 1150px) {
+	.footer {
+		padding-bottom: 0;
+	}
+
+	.contacts {
+		display: flex;
+	}
+
+	.contacts__container {
+		flex-grow: 1;
+	}
+
+	.footer__container {
+		position: absolute;
+		inset-inline: 0;
+		inset-block-end: 15px;
+		padding-top: 0;
+	}
+}
+
+/* The chevron inside is stroked white, so the button cannot go
+   light. Purple it vanished into the contacts panel it now sits on;
+   navy reads against both that and the white half. */
+.footer__up {
+	background-color: rgb(16, 12, 70);
+}
+
+/* a touch wider, into the slack on the right */
+.contacts__map {
+	flex-basis: 620px;
+}
+
+.contacts__body {
+	padding-top: 100px;
+	padding-bottom: 100px;
+}
+
+/* The white above would otherwise outrank style.css's own
+   `.about { background-color: navy }` — same specificity, but this
+   file loads later — and turn the section white between 768 and
+   992px, where its layout is the stacked, all-dark one. */
+@media (min-width: 768px) and (max-width: 991.98px) {
+	.about {
+		background-color: rgb(16, 12, 70);
+	}
+}
+
+/* The hairline under .about::before.
+
+   ::before paints the navy left half over the section's own white
+   background. Once the section is scaled by a fractional factor the
+   two boxes round independently, and white shows along the edge of
+   the navy pane — the same sub-pixel seam the hero panel had.
+
+   Painting the split into the section's own background fixes it at
+   the source: ::before then lands on navy instead of on white, so
+   there is nothing left to peek through. */
+@media (min-width: 992px) {
+	.about {
+		background-image: linear-gradient(
+			to right,
+			rgb(16, 12, 70) 0 50%,
+			rgb(255, 255, 255) 50%
+		);
+	}
+}
+
+/*--- 11. .about grows in while the hero dissolves ---------------
+  Scroll-driven; js/intro.js writes the two custom properties.
+
+  The section is scaled as a whole rather than only widened.
+  Animating width would re-wrap the copy on every scroll frame, and
+  clipping the sides would slice through it — the text starts 85px
+  in from the section edge, while 22% of a 1440px viewport is 158px.
+  A uniform scale cuts nothing and keeps the proportions, so it
+  reads as a card floating over the hero and settling into place.
+
+  var() fallbacks are the finished state, so with JS off the
+  section just renders normally.
+-------------------------------------------------------------- */
+@media (min-width: 768px) {
+	/* Something for a receding layer to sit on. Fading the hero out
+	   instead dropped it onto the page's white, which read as the
+	   content vanishing rather than as two layers separating. Navy
+	   is the dark already in style.css, and it is only ever visible
+	   in the gap a receding section leaves — every section above it
+	   is opaque. */
+	.js .wrapper {
+		background-color: rgb(16, 12, 70);
+	}
+
+	/* All three cards round their corners with clip-path rather
+	   than border-radius + overflow: hidden. Both look the same,
+	   but overflow makes an element a scroll container, and a scroll
+	   container captures sticky descendants — the hero sticks inside
+	   .page, so that would break it. Same tool everywhere keeps them
+	   comparable.
+
+	   The stack recedes under the arriving footer exactly as the
+	   hero recedes under .about: back, into shadow, corners rounding
+	   as it goes. */
+	/* Gated on a class rather than left standing.
+
+	   .page is the whole site — 4338px of it. A transform and a
+	   clip-path on a box that size keep it on its own composited
+	   layer and make it re-rasterise for the entire scroll, to serve
+	   an effect that only runs over the last ~900px. The class goes
+	   on when the footer starts arriving and comes off when it is
+	   not. The overlay is gated with it, so the rest of the time it
+	   does not exist at all. */
+	.js .page.is-receding {
+		transform: scale(var(--stack-s, 1));
+		clip-path: inset(0 round var(--stack-r, 0px));
+	}
+
+	.js .page.is-receding::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background-color: rgb(16, 12, 70);
+		opacity: var(--stack-dim, 0);
+		pointer-events: none;
+	}
+
+	/* The footer arrives the same way .about does — the same scale,
+	   the same easing, the same radius running out as it fills. */
+	.js .footer {
+		transform: scale(var(--footer-s, 1));
+		clip-path: inset(0 round var(--footer-r, 0px));
+	}
+
+	/* forward — rounded while it is a floating card, square once it
+	   has grown into full bleed, so the radius runs opposite to the
+	   hero's */
+	.js .about {
+		transform: scale(var(--about-s, 1));
+		clip-path: inset(0 round var(--about-r, 0px));
+	}
+
+	/* Once .about has fully covered it, the hero stops painting.
+
+	   It is pinned for the whole page, so the moment the stack
+	   recedes and opens a gap around itself, the hero was showing
+	   through it — a stray band of purple panel and photo under the
+	   receding card. Hidden at the point it is already invisible,
+	   so nothing changes on screen until that gap appears, and then
+	   the gap shows the navy backdrop as it should. */
+	.js .main.is-covered {
+		visibility: hidden;
+	}
+
+	/* back */
+	.js .main {
+		transform: scale(var(--hero-s, 1));
+		clip-path: inset(0 round var(--hero-r, 0px));
+	}
+
+	/* Dimming as a flat overlay rather than filter: brightness() —
+	   a solid colour is one cheap paint, a filter re-processes the
+	   whole photo every scroll frame. pointer-events: none so it
+	   does not swallow the mousemove the parallax listens for. */
+	.js .main::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background-color: rgb(16, 12, 70);
+		opacity: var(--hero-dim, 0);
+		pointer-events: none;
+	}
+}
+
+/* style.css gives the photo a 51% box below 992px, which stays
+   very letterboxed once the column is narrow. 80% below 768px lets
+   it crop closer to the portrait the source actually is. */
+@media (max-width: 767.98px) {
+	.about__image {
+		padding-bottom: 80%;
+	}
+}
+
+/*--- 12. about content ----------------------------------------
+  The same language as the hero intro, so the page reads as one
+  piece: eyebrow rises, headline comes out of a mask word by word,
+  paragraphs follow, and the photo wipes out from under the dark
+  half.
+
+  Fired by a class rather than by scroll progress, and once only.
+  The section itself is already making a large scroll-linked move
+  (0.78 -> 1); driving the copy off the same progress would tie its
+  speed to the wheel and let it flicker on a hard flick.
+
+  The wipe runs left to right so the photo emerges from beneath the
+  navy pane it overlaps, rather than merely fading in place. Note
+  .about__image carries a drop-shadow filter, which is applied
+  after the clip — so the soft shadow travels with the wipe edge.
+-------------------------------------------------------------- */
+.js .about__label,
+.js .about__text > p {
+	opacity: 0;
+	transform: translateY(24px);
+}
+
+.js .about__title .word__in {
+	transform: translateY(125%);
+}
+
+.js .about__image {
+	clip-path: inset(0 100% 0 0);
+}
+
+.js .about.is-in :is(.about__label, .about__text > p) {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d);
+}
+
+.js .about.is-in .about__title .word__in {
+	transform: translateY(0);
+	transition: transform 0.85s var(--intro-ease-out)
+		calc(0.2s + var(--i) * 0.08s);
+}
+
+.js .about.is-in .about__image {
+	clip-path: inset(0 0 0 0);
+	transition: clip-path 0.9s var(--intro-ease) 0.25s;
+}
+
+.js .about__label { --d: 0.1s; }
+.js .about__text > p:nth-child(1) { --d: 0.4s; }
+.js .about__text > p:nth-child(2) { --d: 0.5s; }
+
+/*--- 13. services content -------------------------------------
+  Same language again: eyebrow, masked headline, then the four
+  cards staggered in grid order.
+
+  The media half assembles rather than appears — the laptop arrives
+  first and the phone flies up onto it a beat later, travelling
+  further because it lands on top.
+
+  --i does double duty and does not collide: on .word it is the word
+  index inside the headline, on .services__item it is the card index.
+  Different elements, and no .word ever sits inside a card.
+-------------------------------------------------------------- */
+.js .services__label,
+.js .services__item,
+.js .services__image,
+.js .services__phone {
+	opacity: 0;
+}
+
+.js .services__label,
+.js .services__item {
+	transform: translateY(24px);
+}
+
+.js .services__image {
+	transform: translateY(30px);
+}
+
+.js .services__phone {
+	transform: translateY(56px);
+}
+
+.js .services__title .word__in {
+	transform: translateY(125%);
+}
+
+.js .services.is-in
+	:is(.services__label, .services__item, .services__image, .services__phone) {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d);
+}
+
+.js .services.is-in .services__title .word__in {
+	transform: translateY(0);
+	transition: transform 0.85s var(--intro-ease-out)
+		calc(0.2s + var(--i) * 0.08s);
+}
+
+.js .services__label { --d: 0.1s; }
+.js .services__image { --d: 0.25s; }
+.js .services__item { --d: calc(0.38s + var(--i) * 0.09s); }
+.js .services__phone { --d: 0.45s; }
+
+/*--- 14. fluid section labels ---------------------------------
+  All six eyebrows are a flat 16px in style.css, with no media
+  query touching them — so 16px is what mobile already shows and it
+  stays the floor. They grow to 24px by a 1440px viewport and hold
+  there.
+
+  Plain selectors rather than .js-prefixed ones: this is typography,
+  not an effect, and it should hold with scripting off. They match
+  style.css's own specificity and win on source order, since this
+  file is linked after it.
+-------------------------------------------------------------- */
+.main__label,
+.about__label,
+.services__label,
+.portfolio__label,
+.team__label,
+.contacts__label {
+	font-size: clamp(1rem, 0.8333rem + 0.7407vw, 1.5rem);
+}
+
+/*--- 15. services images drift on scroll ----------------------
+  Written to `translate` rather than `transform` on purpose: the
+  reveal in section 11 already animates transform on these two
+  elements, and a single property cannot carry both. translate is
+  its own property, so the two compose — the reveal offset and the
+  parallax drift simply add up.
+-------------------------------------------------------------- */
+@media (min-width: 768px) {
+	.js .services__image {
+		translate: 0 var(--svc-img, 0px);
+	}
+
+	.js .services__phone {
+		translate: 0 var(--svc-phone, 0px);
+	}
+}
+
+/* Two columns hold down to 992px in style.css, but by 478px each
+   card is narrow enough that the portrait crop squeezes. One column
+   from there. (.team__items already does this, at 570px.) */
+@media (max-width: 478px) {
+	.portfolio__items {
+		grid-template-columns: 1fr;
+	}
+}
+
+/*--- 16. portfolio content ------------------------------------
+  Same language as about and services: eyebrow, masked headline,
+  then the cards staggered across the row.
+
+  The cards reveal with an animation rather than a transition. They
+  already carry an opacity transition for the hover dimming, and a
+  second declaration on the same property would win and make every
+  dim inherit the reveal's delay. animation-fill-mode: backwards
+  holds the opening state through the delay and then hands the
+  element back to its own styles, leaving the hover untouched.
+-------------------------------------------------------------- */
+.js .portfolio__label {
+	--d: 0.1s;
+
+	opacity: 0;
+	transform: translateY(24px);
+}
+
+.js .portfolio__title .word__in {
+	transform: translateY(125%);
+}
+
+.js .portfolio:not(.is-in) .portfolio__item {
+	opacity: 0;
+}
+
+.js .portfolio.is-in .portfolio__label {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d);
+}
+
+.js .portfolio.is-in .portfolio__title .word__in {
+	transform: translateY(0);
+	transition: transform 0.85s var(--intro-ease-out)
+		calc(0.2s + var(--i) * 0.08s);
+}
+
+.js .portfolio.is-in .portfolio__item {
+	animation: card-in 0.7s var(--intro-ease-out)
+		calc(0.32s + var(--i) * 0.09s) backwards;
+}
+
+@keyframes card-in {
+	from {
+		opacity: 0;
+		translate: 0 32px;
+	}
+}
+
+/*--- 17. portfolio cards -------------------------------------
+  The fill enters from whichever edge the pointer crossed and leaves
+  toward the edge it exits by. js/intro.js works out that edge and
+  parks the panel just outside it; hovering brings it to 0 0, and
+  because the offset is rewritten on the way out the exit follows
+  the cursor too. overflow: clip hides it while it waits.
+
+  It slides rather than being clipped open. clip-path cannot animate
+  on the compositor — every frame of it repaints the card, and
+  measured over a sweep across the row that was a quarter of the
+  whole hover cost. translate is composited and costs nothing.
+
+  :has() lets the row step back around whatever is hovered, which is
+  what makes one card read as picked rather than merely lit.
+-------------------------------------------------------------- */
+.portfolio__item {
+	overflow: clip;
+	transition: opacity 0.35s ease;
+}
+
+.portfolio__item img {
+	transition: scale 0.6s var(--intro-ease-out);
+}
+
+/* z-index, or this positioned pseudo-element would paint under the
+   absolutely positioned image that comes after it in the box */
+.portfolio__item::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background-color: rgba(98, 87, 254, 0.88);
+	translate: var(--edge-x) var(--edge-y);
+	transition: translate 0.45s var(--intro-ease);
+}
+
+.portfolio__item::after {
+	content: attr(data-title);
+	position: absolute;
+	inset: auto 0 0 0;
+	z-index: 2;
+	padding: 24px;
+	color: rgb(255, 255, 255);
+	font-size: 1.25rem;
+	font-weight: 600;
+	line-height: 1.3;
+	translate: 0 14px;
+	opacity: 0;
+	transition:
+		translate 0.4s var(--intro-ease-out),
+		opacity 0.4s ease;
+}
+
+.portfolio__item:is(:hover, :focus-visible)::before {
+	translate: 0 0;
+}
+
+.portfolio__item:is(:hover, :focus-visible)::after {
+	translate: 0 0;
+	opacity: 1;
+	transition-delay: 0.12s;
+}
+
+.portfolio__item:is(:hover, :focus-visible) img {
+	scale: 1.06;
+}
+
+.portfolio__items:has(.portfolio__item:hover) .portfolio__item:not(:hover) {
+	opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.portfolio__item::before,
+	.portfolio__item::after,
+	.portfolio__item img {
+		transition: none;
+	}
+
+	.portfolio__item:is(:hover, :focus-visible) img {
+		scale: 1;
+	}
+}
+
+/*--- 18. team content and cards -------------------------------
+  Same reveal language as the sections before it, reusing the
+  card-in keyframe from portfolio.
+
+  A different hover, though. Portfolio cards are work, and the fill
+  sweeping in from the cursor suits them; these are people, so the
+  card simply lifts and the bar goes solid under it. :focus-within,
+  because the only focusable things here are the social links inside
+  — tabbing to one should light the card the same way.
+-------------------------------------------------------------- */
+.js .team__label {
+	--d: 0.1s;
+
+	opacity: 0;
+	transform: translateY(24px);
+}
+
+.js .team__title .word__in {
+	transform: translateY(125%);
+}
+
+.js .team:not(.is-in) .item-team {
+	opacity: 0;
+}
+
+.js .team.is-in .team__label {
+	opacity: 1;
+	transform: translateY(0);
+	transition:
+		opacity 0.7s var(--intro-ease-out) var(--d),
+		transform 0.7s var(--intro-ease-out) var(--d);
+}
+
+.js .team.is-in .team__title .word__in {
+	transform: translateY(0);
+	transition: transform 0.85s var(--intro-ease-out)
+		calc(0.2s + var(--i) * 0.08s);
+}
+
+.js .team.is-in .item-team {
+	animation: card-in 0.7s var(--intro-ease-out)
+		calc(0.32s + var(--i) * 0.09s) backwards;
+}
+
+/* The card is a div, not a link, so it came with the default
+   cursor — while zooming the photo under it, which reads as
+   interactive. Nothing to click on the card itself yet; the
+   pointer matches what the hover promises. */
+.item-team {
+	cursor: pointer;
+}
+
+/* the photo needs somewhere to be clipped against while it zooms */
+.item-team__image {
+	overflow: clip;
+}
+
+.item-team img {
+	transition: scale 0.6s var(--intro-ease-out);
+}
+
+.item-team:hover img {
+	scale: 1.06;
+}
+
+/*--- 19. the rotating word in "We're Creative" ---------------- */
+.rotator {
+	display: inline-block;
+	overflow: hidden;
+	vertical-align: bottom;
+	padding-bottom: 0.2em;
+	margin-bottom: -0.2em;
+}
+
+.rotator__in {
+	display: inline-block;
+	transition:
+		transform 0.42s var(--intro-ease),
+		opacity 0.42s var(--intro-ease);
+}
+
+/* leaving upwards */
+.rotator__in.is-out {
+	transform: translateY(-125%);
+	opacity: 0;
+}
+
+/* parked below, ready to rise — no transition, it is a jump cut */
+.rotator__in.is-next {
+	transform: translateY(125%);
+	opacity: 0;
+	transition: none;
+}
+
+/*--- reduced motion: final state, no movement ---------------- */
+@media (prefers-reduced-motion: reduce) {
+	.js .main__body,
+	.js.is-ready .main__body {
+		flex-basis: 40%;
+		transition: none;
+	}
+
+	.js :is(.header, .main__label, .main__text, .main__button),
+	.js.is-ready :is(.header, .main__label, .main__text, .main__button) {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
+	.js .main__title .word__in,
+	.js.is-ready .main__title .word__in,
+	.js .about__title .word__in,
+	.js .about.is-in .about__title .word__in {
+		transform: none;
+		transition: none;
+	}
+
+	.js :is(.about__label, .about__text > p),
+	.js .about.is-in :is(.about__label, .about__text > p) {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
+	.js .about__image,
+	.js .about.is-in .about__image {
+		clip-path: none;
+		transition: none;
+	}
+
+	.js .services__title .word__in,
+	.js .services.is-in .services__title .word__in,
+	.js .portfolio__title .word__in,
+	.js .portfolio.is-in .portfolio__title .word__in,
+	.js .team__title .word__in,
+	.js .team.is-in .team__title .word__in {
+		transform: none;
+		transition: none;
+	}
+
+	.js .portfolio__label,
+	.js .portfolio.is-in .portfolio__label {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
+	.js :is(.portfolio__label, .team__label),
+	.js .portfolio.is-in .portfolio__label,
+	.js .team.is-in .team__label {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
+	.js .portfolio:not(.is-in) .portfolio__item,
+	.js .team:not(.is-in) .item-team {
+		opacity: 1;
+	}
+
+	.js .portfolio.is-in .portfolio__item,
+	.js .team.is-in .item-team {
+		animation: none;
+	}
+
+	.item-team img {
+		transition: none;
+	}
+
+	.item-team:hover img {
+		scale: 1;
+	}
+
+	.js :is(.services__label, .services__item, .services__image, .services__phone),
+	.js .services.is-in
+		:is(.services__label, .services__item, .services__image, .services__phone) {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
+	.rotator__in {
+		transition: none;
+	}
+
+	.button:hover,
+	.button:active,
+	.social-header__item:hover,
+	.social-header__item:focus-visible,
+	.social-header__item:active,
+	.social-team__item:hover,
+	.social-team__item:focus-visible,
+	.social-team__item:active {
+		translate: none;
+		scale: none;
+	}
+}
