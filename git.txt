@@ -1,0 +1,5 @@
+Правишь файлы прямо в ~/Portfolio/maksymsurkov.github.io/deep/, потом три команды:
+
+  cd ~/Portfolio/maksymsurkov.github.io
+  git add -A && git commit -m "правки"
+  git push

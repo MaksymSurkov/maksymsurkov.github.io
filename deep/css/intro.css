@@ -1,15 +1,3 @@
-/*=================================================================
-  Hero intro — additive. Remove the <link> and <script> from
-  index.html and the site is exactly as it was.
-
-  Everything is gated behind .js on <html>, so with JavaScript
-  disabled nothing hides and nothing animates.
-=================================================================*/
-
-/*--- timings --------------------------------------------------
-  Everything below is derived from the panel. Retune the panel and
-  only --intro-copy and --intro-end need to follow.
--------------------------------------------------------------- */
 :root {
 	/* the panel: starts at 0.3s, runs 1.5s, lands at 1.8s */
 	--intro-delay: 0.3s;
