@@ -113,6 +113,25 @@ h6 {
   margin: 0 auto;
   padding: 0 .9375rem
 }
+.form {
+  display: grid;
+  gap: 1.25rem
+}
+.form__line {
+  display: grid;
+  gap: .5rem
+}
+.form__label {
+  font-size: .875rem;
+  font-weight: 500
+}
+.form__button {
+  margin-top: .625rem
+}
+.form__error {
+  color: #dc2626;
+  font-size: .875rem
+}
 .button {
   padding: .6875rem 2rem;
   border: 1px solid #3730a3;
@@ -130,6 +149,74 @@ h6 {
 }
 .button--fw {
   width: 100%
+}
+input[type=email],
+input[type=tel],
+input[type=text],
+textarea {
+  -webkit-appearance: none;
+  appearance: none
+}
+.input {
+  border-radius: .375rem;
+  width: 100%;
+  display: block;
+  padding: .75rem 1rem;
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  line-height: 1.5;
+  caret-color: #3730a3;
+  transition: border-color .3s,box-shadow .3s
+}
+.input::-webkit-input-placeholder {
+  color: #6b7280
+}
+.input:-ms-input-placeholder {
+  color: #6b7280
+}
+.input::-ms-input-placeholder {
+  color: #6b7280
+}
+.input::placeholder {
+  color: #6b7280
+}
+.input._form-focus {
+  border-color: #3730a3;
+  box-shadow: 0 0 0 .1875rem rgba(55,48,163,.15)
+}
+.input._form-error {
+  border-color: #dc2626
+}
+.input[placeholder]:not([data-placeholder-nohiden])::-webkit-input-placeholder {
+  -webkit-transition: opacity .3s;
+  transition: opacity .3s
+}
+.input[placeholder]:not([data-placeholder-nohiden]):-ms-input-placeholder {
+  -ms-transition: opacity .3s;
+  transition: opacity .3s
+}
+.input[placeholder]:not([data-placeholder-nohiden])::-ms-input-placeholder {
+  -ms-transition: opacity .3s;
+  transition: opacity .3s
+}
+.input[placeholder]:not([data-placeholder-nohiden])::placeholder {
+  transition: opacity .3s
+}
+.input[placeholder]:not([data-placeholder-nohiden]):focus::-webkit-input-placeholder {
+  opacity: 0
+}
+.input[placeholder]:not([data-placeholder-nohiden]):focus:-ms-input-placeholder {
+  opacity: 0
+}
+.input[placeholder]:not([data-placeholder-nohiden]):focus::-ms-input-placeholder {
+  opacity: 0
+}
+.input[placeholder]:not([data-placeholder-nohiden]):focus::placeholder {
+  opacity: 0
+}
+textarea.input {
+  resize: vertical;
+  min-height: 7.5rem
 }
 .menu__body {
   flex: 1 1 auto
@@ -220,14 +307,51 @@ body::after {
   transition: -webkit-transform .3s ease 0s;
   transition: transform .3s ease 0s;
   transition: transform .3s ease 0s,-webkit-transform .3s ease 0s;
-  background-color: #eee;
-  padding: 20px;
+  position: relative;
+  background-color: #fff;
   width: 100%;
-  max-width: 900px;
-  border-radius: 20px
+  max-width: 35rem;
+  border-radius: .375rem;
+  box-shadow: 0 1.25rem 3.125rem rgba(31,41,55,.15)
+}
+.popup--message .popup__content {
+  max-width: 26.25rem;
+  text-align: center
 }
 .lock .popup__content {
   visibility: visible
+}
+.popup__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  color: #6b7280;
+  transition: color .3s,background-color .3s
+}
+.popup__close svg {
+  width: 1rem;
+  height: 1rem
+}
+.popup__title {
+  font-weight: 700;
+  line-height: 1.2;
+  padding-right: 2.5rem
+}
+.popup--message .popup__title {
+  padding-right: 0
+}
+.popup__title:not(:last-child) {
+  margin-bottom: .75rem
+}
+.popup__text {
+  color: #6b7280;
+  line-height: 1.55
 }
 .ibg {
   width: 100%;
@@ -826,6 +950,15 @@ tbody .table__row:last-child .table__cell {
   .menu__item {
     margin-right: 5rem
   }
+  .popup__content {
+    padding: 3rem
+  }
+  .popup__title {
+    font-size: 2.25rem
+  }
+  .popup__text:not(:last-child) {
+    margin-bottom: 2rem
+  }
   .header__container {
     min-height: 14.75rem
   }
@@ -952,6 +1085,15 @@ tbody .table__row:last-child .table__cell {
 @media (max-width:20em) {
   .menu__item {
     margin-right: .625rem
+  }
+  .popup__content {
+    padding: 1.5rem
+  }
+  .popup__title {
+    font-size: 1.625rem
+  }
+  .popup__text:not(:last-child) {
+    margin-bottom: 1.25rem
   }
   .header__container {
     min-height: 5rem
@@ -1249,6 +1391,36 @@ tbody .table__row:last-child .table__cell {
   @supports not (margin-right:clamp(0.625rem ,-0.9480337079rem + 7.8651685393vw ,5rem)) {
     .menu__item {
       margin-right: calc(.625rem + 4.375 * (100vw - 20rem)/ 55.625)
+    }
+  }
+  @supports (padding:clamp(1.5rem ,0.9606741573rem + 2.6966292135vw ,3rem)) {
+    .popup__content {
+      padding: clamp(1.5rem ,.9606741573rem + 2.6966292135vw ,3rem)
+    }
+  }
+  @supports not (padding:clamp(1.5rem ,0.9606741573rem + 2.6966292135vw ,3rem)) {
+    .popup__content {
+      padding: calc(1.5rem + 1.5 * (100vw - 20rem)/ 55.625)
+    }
+  }
+  @supports (font-size:clamp(1.625rem ,1.4002808989rem + 1.1235955056vw ,2.25rem)) {
+    .popup__title {
+      font-size: clamp(1.625rem ,1.4002808989rem + 1.1235955056vw ,2.25rem)
+    }
+  }
+  @supports not (font-size:clamp(1.625rem ,1.4002808989rem + 1.1235955056vw ,2.25rem)) {
+    .popup__title {
+      font-size: calc(1.625rem + .625 * (100vw - 20rem)/ 55.625)
+    }
+  }
+  @supports (margin-bottom:clamp(1.25rem ,0.9803370787rem + 1.3483146067vw ,2rem)) {
+    .popup__text:not(:last-child) {
+      margin-bottom: clamp(1.25rem ,.9803370787rem + 1.3483146067vw ,2rem)
+    }
+  }
+  @supports not (margin-bottom:clamp(1.25rem ,0.9803370787rem + 1.3483146067vw ,2rem)) {
+    .popup__text:not(:last-child) {
+      margin-bottom: calc(1.25rem + .75 * (100vw - 20rem)/ 55.625)
     }
   }
   @supports (min-height:clamp(5rem ,1.4943820225rem + 17.5280898876vw ,14.75rem)) {
@@ -1664,6 +1836,10 @@ tbody .table__row:last-child .table__cell {
   .menu__item:hover .menu__link::before {
     left: 0;
     width: 100%
+  }
+  .popup__close:hover {
+    color: #3730a3;
+    background-color: #eef2ff
   }
   .header__logo:hover {
     -webkit-transform: rotate(0);
