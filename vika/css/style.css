@@ -160,7 +160,8 @@ ul li {
   list-style: none
 }
 img {
-  vertical-align: top
+  vertical-align: top;
+  height: auto
 }
 h1,
 h2,
@@ -545,6 +546,10 @@ summary {
   -webkit-appearance: none;
   appearance: none;
   outline: 0
+}
+summary:focus-visible {
+  outline: .125rem solid #ff6b00;
+  outline-offset: .25rem
 }
 summary::-webkit-details-marker {
   display: none
